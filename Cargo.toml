@@ -1,0 +1,12 @@
+[package]
+name = "pi-pinger"
+version = "0.1.0"
+edition = "2021"
+authors = ["rmartin5"]
+repository = "https://github.com/rmartin5/pi-pinger"
+description = "Raspberry Pi network ping tool in Rust"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.75"
