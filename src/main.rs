@@ -1,66 +1,35 @@
-use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH, Duration};
-use std::thread::sleep;
-use std::fs::OpenOptions;
-use std::io::Write;
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::Parser;
+use env_logger::Env;
+use log::{info, debug, error};
 use rand::Rng;
+use std::{
+    fs::OpenOptions,
+    io::Write,
+    process::Command,
+    thread::sleep,
+    time::{SystemTime, UNIX_EPOCH, Duration},
+};
 
-// TODO better organization of struct/enum/func
-#[derive(Debug)]
-struct Ping {
-    avg: f32,
-    ts: u64,
-}
-
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct PingConfig {
-    #[arg(short, long)]
-    output_file: Option<String>,
-    #[arg(short, long)]
-    ip: String,
-    #[arg(short, long, default_value_t = 5)]
-    count: u32,
-    #[command(subcommand)]
-    model: PingModel,
-}
-
-#[derive(Subcommand, Debug)]
-enum PingModel {
-    #[command(name = "random")]
-    RandomIntervals{
-        /// Max interval in seconds
-        #[arg(short = 'm', long = "max", default_value_t = 3600)]
-        max_interval: u64,
-        /// Min interval in seconds
-        #[arg(short = 'n', long = "min", default_value_t = 300)]
-        min_interval: u64,
-    },
-    #[command(name = "constant")]
-    ConstantIntervals{
-        /// Interval in seconds
-        #[arg(short, long, default_value_t = 300)]
-        interval: u64,
-    },
-}
+use crate::ping::*;
+mod ping;
 
 fn main() {
-    let args = PingConfig::parse();
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
-    println!("{:?}", args);
+    let args = PingConfig::parse();
+    debug!("{:?}", args);
 
     match args.model {
         PingModel::RandomIntervals{min_interval, max_interval} if min_interval > max_interval => {
-            println!("error: Minimum interval ({}) is greater than maximum interval ({})", min_interval, max_interval);
+            error!("Minimum interval ({}) is greater than maximum interval ({})", min_interval, max_interval);
             return;
         },
         _ => {}
     }
 
     if let Err(e) = ping_start(args) {
-        println!("error: {:?}", e);
+        error!("Failure: {:?}", e);
     }
 }
 
@@ -70,13 +39,13 @@ fn ping_start(cfg: PingConfig) -> Result<()> {
     let file_path = cfg.output_file.unwrap_or("ping_result.csv".to_string());
     let mut file = OpenOptions::new().append(true).create(true).open(file_path)?;
 
-    println!("time_stamp ping_average");
+    info!("time_stamp ping_average");
 
     loop {
         let ping = ping_average(&cfg.ip, cfg.count)?;
         let data = format!("{} {}\n", ping.ts, ping.avg);
         file.write_all(data.as_bytes())?;
-        println!("{} {}", ping.ts, ping.avg);
+        info!("{} {}", ping.ts, ping.avg);
 
         let sleep_time = match cfg.model {
             PingModel::RandomIntervals{min_interval, max_interval} => {
@@ -87,6 +56,7 @@ fn ping_start(cfg: PingConfig) -> Result<()> {
             }
         };
 
+        debug!("sleep for {} seconds", sleep_time);
         sleep(Duration::from_secs(sleep_time));
     }
 }
