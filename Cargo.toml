@@ -10,3 +10,5 @@ description = "Raspberry Pi network ping tool in Rust"
 
 [dependencies]
 anyhow = "1.0.75"
+clap = { version = "4.4.6", features = ["derive"] }
+rand = "0.8.5"
